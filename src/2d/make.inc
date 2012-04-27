@@ -8,7 +8,7 @@
 #=================================#
 # Name of Fortran and C compilers #
 #=================================#
-FORTRAN = lf95
+FORTRAN = /usr/local/lf6481/bin/lf95
 #
 #
 #================#

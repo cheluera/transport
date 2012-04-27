@@ -12,6 +12,8 @@ implicit none
 double precision, allocatable, dimension(:,:,:) :: psi, sSource
 double precision, allocatable, dimension(:,:)   :: phi_new, phi_old
 double precision, allocatable, dimension(:,:,:) :: left, right, top, bottom
+double precision, allocatable, dimension(:)     :: legP_coefs
+
 double precision :: error, conv, ss, pi, wsum, s0
 
 !Quadrature (x,y,z,w) - (xi,eta,mu,w)
@@ -25,7 +27,7 @@ double precision :: dx, dy
 integer :: nx, ny
 
 !Integers
-integer :: i, j, k, l, m, n, iter, nOrds
+integer :: i, j, k, l, m, n, iter, nOrds, n_moments
 integer :: n1, n2, n3, n4, n5, n6, n7, n8
 
 !Maximum number of iterations
@@ -42,26 +44,34 @@ maxIter = 500
 pi = acos(-1.0)
 
 !Setup mesh
-Lx = 40.0
-Ly = 40.0
+Lx = 20.0
+Ly = 20.0
 
-nx = 800
-ny = 800
+nx = 500
+ny = 500
 
 dx = Lx/(1.0*nx)
 dy = Ly/(1.0*ny)
 
-!Cross section information -- at this time only isotropic
+!Cross section information
 sigmaA = 0.5
 sigmaS = 0.5
 sigmaT = sigmaA + sigmaS
 c      = sigmaS/sigmaT
 
+!Legendre scattering coefficients
+n_moments = 3
+allocate(legP_coefs(n_moments))
+legP_coefs(1) = 1.0d0
+legP_coefs(2) = 0.5d0
+legP_coefs(3) = 0.25d0
+
+
 write(*,*) 'c = ', c
 write(*,*) 'sigmaT*mesh size: ', sigmaT * dx, sigmaT * dy
 
 !Read quadrature set
-open(unit=6,file='s10-ords.txt',status='old')
+open(unit=6,file='../../quadratures/level-symmetric/s10-ords.txt',status='old')
 read(6,*) n1, n2, n3, n4
 close(6)
 
@@ -85,7 +95,7 @@ allocate( mu(nOrds))
 allocate(  w(nOrds))
 
 wsum = 0.0
-open(unit=6,file='s10.txt',status='old')
+open(unit=6,file='../../quadratures/level-symmetric/s10.txt',status='old')
 do i=1,nOrds
   read(6,*) xi(i), eta(i), mu(i), w(i)
   wsum = wsum + w(i)
@@ -149,7 +159,7 @@ do while((iter .lt. maxIter).and.(error .gt. conv))
       do i=1,nx  !--loop over x starting at x=0 
 
         !--Get previous scattering source + external source at (i,j,n)
-	call source(i,j,nx,ny,dx,dy,pi,c,phi_new(i,j),ss)
+	call source(i,j,nx,ny,dx,dy,c,phi_new(i,j),legP_coefs,n_moments,ss)
 
         !--Update cell centered quantity
         psi(i,j,n) = ( (2.0*xi(n)/dx)*left(i-1,j,n) +  (2.0*eta(n)/dy)*bottom(i,j-1,n) + ss) /  &
@@ -178,7 +188,7 @@ do while((iter .lt. maxIter).and.(error .gt. conv))
       do i=nx,1,-1  !--loop over x starting at x=Lx 
 
         !--Get previous scattering source + external source at (i,j,n)
-	call source(i,j,nx,ny,dx,dy,pi,c,phi_new(i,j),ss)
+	call source(i,j,nx,ny,dx,dy,c,phi_new(i,j),legP_coefs,n_moments,ss)
 
         !--Update cell centered quantity
         psi(i,j,n) = ( (2.0*abs(xi(n))/dx)*right(i+1,j,n) +  (2.0*eta(n)/dy)*bottom(i,j-1,n) + ss) /  &
@@ -207,7 +217,7 @@ do while((iter .lt. maxIter).and.(error .gt. conv))
       do i=nx,1,-1   !--loop over x starting at x=Lx 
 
         !--Get previous scattering source + external source at (i,j,n)
-	call source(i,j,nx,ny,dx,dy,pi,c,phi_new(i,j),ss)
+	call source(i,j,nx,ny,dx,dy,c,phi_new(i,j),legP_coefs,n_moments,ss)
 
         !--Update cell centered quantity
         psi(i,j,n) = ( (2.0*abs(xi(n))/dx)*right(i+1,j,n) +  (2.0*abs(eta(n))/dy)*top(i,j+1,n) + ss) /  &
@@ -236,7 +246,7 @@ do while((iter .lt. maxIter).and.(error .gt. conv))
       do i=1,nx    !--loop over x starting at x=0 
 
         !--Get previous scattering source + external source at (i,j,n)
-	call source(i,j,nx,ny,dx,dy,pi,c,phi_new(i,j),ss)
+	call source(i,j,nx,ny,dx,dy,c,phi_new(i,j),legP_coefs,n_moments,ss)
 
         !--Update cell centered quantity
         psi(i,j,n) = ( (2.0*abs(xi(n))/dx)*left(i-1,j,n) +  (2.0*abs(eta(n))/dy)*top(i,j+1,n) + ss) /  &
@@ -256,6 +266,8 @@ do while((iter .lt. maxIter).and.(error .gt. conv))
 
   end do
 
+  !--Calculate new scattering moments
+! call sph_moments(legP_coefs,n_moments,psi,moments)
 
 
   !--Calculate new estimate for phi
@@ -274,7 +286,6 @@ do while((iter .lt. maxIter).and.(error .gt. conv))
   write(*,*) 'Error: ',MAXVAL(phi_new - phi_old)
 
   phi_old = phi_new
-
 
   iter = iter + 1
 
@@ -296,35 +307,19 @@ close(6)
 deallocate(psi)
 deallocate(sSource)
 deallocate(phi_new, phi_old)
+deallocate(legP_coefs)
 
 deallocate(xi,eta,mu,w)
 deallocate(left,right,top,bottom)
 
 end program twoDSn
 
-!--Subroutine for calculating scattering source and external source
-!--Needs modification to allow for anisotropic sources
 
-subroutine source(i,j,nx,ny,dx,dy,pi,c,phi,ss)
+!------------------------End of Main------------------------!
 
-implicit none
 
-double precision :: phi
-double precision :: ss, pi, c
 
-!Mesh parameters
-double precision :: dx, dy
-integer :: nx, ny
 
-!Integers
-integer :: i, j
-
-        ss = c * phi/(4.0*pi) !sSource(i,j,n)
-        if ((i .eq. nx/2) .and. (j .eq. ny/2)) then
-          ss = ss + 1.0/(dx*dy*4.0*pi)
-        end if
-return
-end subroutine source
 
 !--Subroutines below are not yet used...
 
