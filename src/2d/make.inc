@@ -15,9 +15,9 @@ FORTRAN = /usr/local/lf6481/bin/lf95
 # Compiler flags #
 #================#
 ##FFLAGS =  -KOMP -SSL2 --parallel
-FFLAGS = --o2 --parallel --ocl --threads 4 
+#FFLAGS = --o2 --parallel --ocl --threads 4 
 #FFLAGS = --o2 --staticlink
-#FFLAGS =  --chk  -g  --info
+FFLAGS =  --chk  -g  --info
 ####
 ####
 CFLAGS     = $(FFLAGS) 

@@ -5,8 +5,6 @@ Program twoDSn
 !
 !
 !---------------------------------------------------------!
-
-
 implicit none
 
 double precision, allocatable, dimension(:,:,:) :: psi, sSource
@@ -14,12 +12,17 @@ double precision, allocatable, dimension(:,:)   :: phi_new, phi_old
 double precision, allocatable, dimension(:,:,:) :: left, right, top, bottom
 double precision, allocatable, dimension(:)     :: legP_coefs
 
-double precision :: error, conv, ss, pi, wsum, s0
+double precision :: error, conv, ext_ss, ss, t_ss, pi, wsum, s0
 
 !Quadrature (x,y,z,w) - (xi,eta,mu,w)
 double precision, allocatable, dimension(:) :: xi, eta, mu, w 
 
 double precision sigmaA, sigmaS, sigmaT, c
+
+!Spherical harmonics
+double precision, allocatable, dimension(:,:) :: p
+double precision, allocatable, dimension(:)   :: phire, phiim
+
 
 !Mesh parameters
 double precision :: Lx, Ly
@@ -94,6 +97,9 @@ allocate(eta(nOrds))
 allocate( mu(nOrds))
 allocate(  w(nOrds))
 
+allocate(p(0:10,0:10))
+allocate(phire(0:10), phiim(0:10))
+
 wsum = 0.0
 open(unit=6,file='../../quadratures/level-symmetric/s10.txt',status='old')
 do i=1,nOrds
@@ -148,6 +154,13 @@ phi_old = 0.0
 s0 = 0.0
 
 
+!Precompute spherical harmonics at the quadrature points
+call spharm(10,10,10,dcos(0.1d0),0.1d0,dsin(0.1d0),dcos(0.1d0),p,phire,phiim)
+
+
+pause
+
+
 !Start source iteration
 do while((iter .lt. maxIter).and.(error .gt. conv))
 
@@ -158,11 +171,17 @@ do while((iter .lt. maxIter).and.(error .gt. conv))
 
       do i=1,nx  !--loop over x starting at x=0 
 
-        !--Get previous scattering source + external source at (i,j,n)
-	call source(i,j,nx,ny,dx,dy,c,phi_new(i,j),legP_coefs,n_moments,ss)
+        !--external source at (i,j,Omega_n)
+	call ext_source(i,j,nx,ny,dx,dy,xi(n),eta(n),mu(n),ext_ss)
+
+        !--scattering source via spherical harmonics
+        !call XXXX(ss)
+
+        !--total scattering source
+        t_ss = ext_ss ! + ...
 
         !--Update cell centered quantity
-        psi(i,j,n) = ( (2.0*xi(n)/dx)*left(i-1,j,n) +  (2.0*eta(n)/dy)*bottom(i,j-1,n) + ss) /  &
+        psi(i,j,n) = ( (2.0*xi(n)/dx)*left(i-1,j,n) +  (2.0*eta(n)/dy)*bottom(i,j-1,n) + t_ss) /  &
                       ( 2.0*xi(n)/dx + 2.0*eta(n)/dy + 1.0)
 
         !--Update left face
@@ -187,11 +206,17 @@ do while((iter .lt. maxIter).and.(error .gt. conv))
 
       do i=nx,1,-1  !--loop over x starting at x=Lx 
 
-        !--Get previous scattering source + external source at (i,j,n)
-	call source(i,j,nx,ny,dx,dy,c,phi_new(i,j),legP_coefs,n_moments,ss)
+        !--external source at (i,j,Omega_n)
+	call ext_source(i,j,nx,ny,dx,dy,xi(n),eta(n),mu(n),ext_ss)
+
+        !--scattering source via spherical harmonics
+        !call XXXX(ss)
+
+        !--total scattering source
+        t_ss = ext_ss ! + ...
 
         !--Update cell centered quantity
-        psi(i,j,n) = ( (2.0*abs(xi(n))/dx)*right(i+1,j,n) +  (2.0*eta(n)/dy)*bottom(i,j-1,n) + ss) /  &
+        psi(i,j,n) = ( (2.0*abs(xi(n))/dx)*right(i+1,j,n) +  (2.0*eta(n)/dy)*bottom(i,j-1,n) + t_ss) /  &
                       ( 2.0*abs(xi(n))/dx + 2.0*eta(n)/dy + 1.0)
 
         !--Update right face
@@ -216,11 +241,17 @@ do while((iter .lt. maxIter).and.(error .gt. conv))
 
       do i=nx,1,-1   !--loop over x starting at x=Lx 
 
-        !--Get previous scattering source + external source at (i,j,n)
-	call source(i,j,nx,ny,dx,dy,c,phi_new(i,j),legP_coefs,n_moments,ss)
+        !--external source at (i,j,Omega_n)
+	call ext_source(i,j,nx,ny,dx,dy,xi(n),eta(n),mu(n),ext_ss)
+
+        !--scattering source via spherical harmonics
+        !call XXXX(ss)
+
+        !--total scattering source
+        t_ss = ext_ss ! + ...
 
         !--Update cell centered quantity
-        psi(i,j,n) = ( (2.0*abs(xi(n))/dx)*right(i+1,j,n) +  (2.0*abs(eta(n))/dy)*top(i,j+1,n) + ss) /  &
+        psi(i,j,n) = ( (2.0*abs(xi(n))/dx)*right(i+1,j,n) +  (2.0*abs(eta(n))/dy)*top(i,j+1,n) + t_ss) /  &
                       ( 2.0*abs(xi(n))/dx + 2.0*abs(eta(n))/dy + 1.0)
 
         !--Update right face
@@ -245,11 +276,17 @@ do while((iter .lt. maxIter).and.(error .gt. conv))
 
       do i=1,nx    !--loop over x starting at x=0 
 
-        !--Get previous scattering source + external source at (i,j,n)
-	call source(i,j,nx,ny,dx,dy,c,phi_new(i,j),legP_coefs,n_moments,ss)
+        !--external source at (i,j,Omega_n)
+	call ext_source(i,j,nx,ny,dx,dy,xi(n),eta(n),mu(n),ext_ss)
+
+        !--scattering source via spherical harmonics
+        !call XXXX(ss)
+
+        !--total scattering source
+        t_ss = ext_ss ! + ...
 
         !--Update cell centered quantity
-        psi(i,j,n) = ( (2.0*abs(xi(n))/dx)*left(i-1,j,n) +  (2.0*abs(eta(n))/dy)*top(i,j+1,n) + ss) /  &
+        psi(i,j,n) = ( (2.0*abs(xi(n))/dx)*left(i-1,j,n) +  (2.0*abs(eta(n))/dy)*top(i,j+1,n) + t_ss) /  &
                       ( 2.0*abs(xi(n))/dx + 2.0*abs(eta(n))/dy + 1.0)
 
         !--Update right face
@@ -265,9 +302,15 @@ do while((iter .lt. maxIter).and.(error .gt. conv))
     end do
 
   end do
+  !--------------------------------------!
+  !------Done with transport sweeps------!
+  !--------------------------------------!  
+
 
   !--Calculate new scattering moments
-! call sph_moments(legP_coefs,n_moments,psi,moments)
+  !call sph_moments(legP_coefs,n_moments,psi,moments)
+
+
 
 
   !--Calculate new estimate for phi
@@ -292,6 +335,8 @@ do while((iter .lt. maxIter).and.(error .gt. conv))
 end do
 
 !Calculate total absorption rate -- should be unity for normalized source
+
+
 write(*,*) 'Total absorption: ', (1.0 - c) * SUM(phi_old)*dx*dy
 
 
