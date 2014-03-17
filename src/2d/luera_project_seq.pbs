@@ -1,0 +1,7 @@
+#!/bin/bash
+#PBS -N luera_project
+#PBS -l nodes=1:ppn=1:compute
+#PBS -l walltime=50:00:00
+#PBS -V
+cd $PBS_O_WORKDIR
+./driver

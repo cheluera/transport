@@ -8,7 +8,8 @@
 #=================================#
 # Name of Fortran and C compilers #
 #=================================#
-FORTRAN = /usr/local/lf6481/bin/lf95
+#FORTRAN = lf95
+FORTRAN = ifort
 #
 #
 #================#
@@ -17,7 +18,10 @@ FORTRAN = /usr/local/lf6481/bin/lf95
 ##FFLAGS =  -KOMP -SSL2 --parallel
 #FFLAGS = --o2 --parallel --ocl --threads 4 
 #FFLAGS = --o2 --staticlink
-FFLAGS =  --chk  -g  --info
+#FFLAGS =  --chk  -g  --info
+#FFLAGS = -g -Wall -fbounds-check -fcheck=all
+#FFLAGS = -O3 -g -traceback -check all -fp-stack-check
+FFLAGS = -O3
 ####
 ####
 CFLAGS     = $(FFLAGS) 
@@ -30,9 +34,10 @@ DIRLIB  = $(HOME)/usr/lib/lf
 #=====================#
 # 3rd party libraries #
 #=====================#
-OTHERLIB = -lnsl -lblas -llapack
+#OTHERLIB = -lnsl -lblas -llapack
+OTHERLIB = 
 #
-#
+##
 
 
 

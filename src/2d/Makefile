@@ -4,8 +4,9 @@ include make.inc
 #
 #==========================================#
 # List object files needed for compilation #
-#==========================================#
-OBJS0   = sn-2d.o sph-source.o spharm.o ext_source.o
+#==========================================# 
+OBJS0 = sn-2d.o sph-source.o spharm.o ext_source.o f_moments.o mfd_solution.o \
+	manufactured.o error_2.o error_3.o output.o
 #
 #  
 #==========================#

@@ -7,6 +7,8 @@ Program twoDSn
 !
 !---------------------------------------------------------!
 
+use mpi
+
 implicit none
 
 double precision, allocatable, dimension(:,:,:) :: psi, sSource, ss, ext_ss
@@ -21,7 +23,7 @@ double precision :: error, conv, t_ss, pi, wsum
 double precision, allocatable, dimension(:) :: xi, eta, mu, w 
 double precision                            :: cosphi, sinphi
 
-double precision sigmaA, sigmaS, sigmaT, c, start, finish
+double precision sigmaA, sigmaS, sigmaT, c
 
 !Spherical harmonics
 double precision, allocatable, dimension(:,:) :: p, phir, phii
@@ -44,22 +46,25 @@ integer :: n1, n2, n3, n4 ! n5, n6, n7, n8
 !Maximum number of iterations
 integer :: maxIter
 
+!MPI variables
+integer :: ierror, rank, num_cores, master
+
 !===========================================================!
 !===========================================================!
-call CPU_TIME(start)
+
 error   = 10.0d0
-conv    = 1.0d-14
+conv    = 1.0d-15
 iter    = 0
 maxIter = 5000
 
 pi = 3.1415926535897932385d0
 
 !Setup mesh
-Lx = 10.0
-Ly = 10.0
+Lx = 20.0
+Ly = 20.0
 
-nx = 1000
-ny = 1000
+nx = 20
+ny = 20
 
 dx = Lx/(1.0*nx)
 dy = Ly/(1.0*ny)
@@ -70,10 +75,10 @@ sigmaS = 0.50d0
 sigmaT = sigmaA + sigmaS
 c      = sigmaS/sigmaT
 
-n_moments = 20 !max moments for mfd solution
+n_moments = 0 !max moments for mfd solution
 
 !Legendre scattering coefficients
-n_max = 20
+n_max = 0
 allocate(legP_coefs(0:n_max))
   do i=0,n_max
   legP_coefs(i) = 1.0d0 / (2.0d0**i)
@@ -83,7 +88,7 @@ write(*,*) 'c = ', c
 write(*,*) 'sigmaT*mesh size: ', sigmaT * dx, sigmaT * dy
 
 !Read quadrature set
-open(unit=7,file='../../quadratures/level-symmetric/s24-ords.txt',status='old')
+open(unit=7,file='../../quadratures/level-symmetric/s4-ords.txt',status='old')
 read(7,*) n1, n2, n3, n4
 close(7)
 
@@ -123,11 +128,10 @@ allocate(phii(nOrds,0:n_sph))
 allocate(fm(0:n_max))
 allocate(fmre(nx,ny,0:n_max,0:n_max))
 allocate(fmim(nx,ny,0:n_max,0:n_max))
-allocate(fmre_old(nx,ny,0:n_max,0:n_max))
 
 !Read quadrature
 wsum = 0.0d0
-open(unit=7,file='../../quadratures/level-symmetric/s24.txt',status='old')
+open(unit=7,file='../../quadratures/level-symmetric/s4.txt',status='old')
 do i=1,nOrds
   read(7,*) xi(i), eta(i), mu(i), w(i)
   wsum = wsum + w(i)
@@ -171,6 +175,11 @@ end do
 call mfd(nx,ny,dx,dy,xi,eta,nOrds,n_moments,n_max,n_min,n_sph,legP_coefs,c,sphre,phir,phii,left,right,&
          bottom,top,ext_ss,psi_mfd,phi_mfd)
 
+!Begin MPI
+call MPI_Init(ierror)
+call MPI_Comm_rank(MPI_COMM_WORLD,rank,ierror)
+call MPI_Comm_size(MPI_COMM_WORLD,num_cores,ierror)
+write(*,*) rank
 !Start source iteration
 do while((iter .lt. maxIter).and.(error .gt. conv))
 
@@ -309,6 +318,8 @@ do while((iter .lt. maxIter).and.(error .gt. conv))
   end do
 
   !--Calculate moments
+  fmre_old = fmre
+
   call f_moments(nx,ny,psi,w,n_max,n_min,n_sph,nOrds,sphre,phir,phii,fmre,fmim)
 
   !--scattering source via spherical harmonics
@@ -317,8 +328,6 @@ do while((iter .lt. maxIter).and.(error .gt. conv))
   error = abs(MAXVAL(fmre - fmre_old))
   
   !write(*,*) 'Diff: ', error
-
-  fmre_old = fmre
 
   iter = iter + 1
 
@@ -344,6 +353,8 @@ end do
 
 call output(nx,ny,dx,dy,nOrds,psi,psi_mfd,phi_new,phi_mfd)
 
+call MPI_Finalize(ierror)
+
 deallocate(psi, ss)
 deallocate(sSource, ext_ss)
 deallocate(phi_new)
@@ -360,70 +371,4 @@ deallocate(fm)
 deallocate(xi,eta,mu,w)
 deallocate(left,right,top,bottom)
 
-call CPU_TIME(finish)
-open(unit=14, file='time.txt', access='append', status='unknown')
-write(14,'(A5,I5,A8,ES16.8)') 'P:', nx, 'Time:', finish-start
-close(14)
-
 end program twoDSn
-
-
-!------------------------End of Main------------------------!
-
-
-
-
-
-!--Subroutines below are not yet used...
-
-!subroutine bottom(x,xi,eta,value)
-!  !--Boundary data on bottom face--!
-!
-!  if(eta .lt. 0.0) then
-!    write(*,*) "Can not specify outgoing bottom flux"
-!    stop
-!  else
-!    value = 0.0
-!  end if
-!
-!end 
-!
-!
-!subroutine top(x,xi,eta,value)
-!  !--Boundary data on top face--!
-!
-!  if(xi .gt. 0.0) then
-!    write(*,*) "Can not specify outgoing top flux"
-!    stop
-!  else
-!    value = 0.0
-!  end if
-!
-!end 
-!
-!subroutine left(y,xi,eta,value)
-!  !--Boundary data on left face--!
-!
-!  if(xi .lt. 0.0) then
-!    write(*,*) "Can not specify outgoing left flux"
-!    stop
-!  else
-!    value = 0.0
-!  end if
-!
-!end 
-!
-!
-!subroutine right(y,xi,eta,value)
-!  !--Boundary data on right face--!
-!
-!  if(xi .gt. 0.0) then
-!    write(*,*) "Can not specify outgoing right flux"
-!    stop
-!  else
-!    value = 0.0
-!  end if
-!
-!end 
-
-
